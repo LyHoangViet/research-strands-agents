@@ -1,0 +1,20 @@
+{
+  "agent": {
+    "name": "ChatbotAgent",
+    "personality": "helpful",
+    "max_memory": 100
+  },
+  "strands": {
+    "max_active": 10,
+    "timeout": 300
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/chatbot.log"
+  },
+  "api": {
+    "host": "localhost",
+    "port": 8000,
+    "debug": true
+  }
+}
