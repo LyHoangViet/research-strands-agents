@@ -8,7 +8,7 @@ BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(BASE_PATH, "data")
 
 # Lấy model ID từ biến môi trường hoặc sử dụng giá trị mặc định
-CHATBOT_AGENT_MODEL = os.getenv("CHATBOT_AGENT_MODEL", "anthropic.claude-3-sonnet-20240229-v1:0")
+CHATBOT_AGENT_MODEL = os.getenv("CHATBOT_AGENT_MODEL", "us.anthropic.claude-3-7-sonnet-20250219-v1:0")
 
 # AWS Configure
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
