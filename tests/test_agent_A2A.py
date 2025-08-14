@@ -13,7 +13,6 @@ from strands import Agent
 from strands.models import BedrockModel
 from strands.multiagent.a2a import A2AServer
 
-# Try to import calculator tool
 try:
     from strands_tools.calculator import calculator
     print("✅ Calculator tool imported")
@@ -21,10 +20,8 @@ except ImportError:
     print("⚠️ Calculator tool not available")
     calculator = None
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 
-# Create boto session
 boto_session = boto3.Session(
     aws_access_key_id=config.AWS_ACCESS_KEY_ID,
     aws_secret_access_key=config.AWS_SECRET_ACCESS_KEY,
@@ -32,7 +29,6 @@ boto_session = boto3.Session(
     region_name=config.AWS_REGION
 )
 
-# Create Bedrock model
 bedrock_model = BedrockModel(
     boto_session=boto_session,
     model_id=config.CHATBOT_AGENT_MODEL,
@@ -40,7 +36,6 @@ bedrock_model = BedrockModel(
     max_tokens=config.BEDROCK_MAX_TOKENS,
 )
 
-# Create agent
 tools = [calculator] if calculator else []
 agent = Agent(
     model=bedrock_model,
@@ -50,7 +45,6 @@ agent = Agent(
     callback_handler=None
 )
 
-# Create A2A server
 a2a_server = A2AServer(agent=agent)
 
 def test_basic_agent():
@@ -85,7 +79,6 @@ def test_a2a_server():
         print(f"Agent description: {agent.description}")
         print(f"Tools available: {len(tools)} tools")
         
-        # Start server in background thread
         def start_server():
             try:
                 print("🚀 Starting A2A server...")
@@ -96,7 +89,6 @@ def test_a2a_server():
         server_thread = threading.Thread(target=start_server, daemon=True)
         server_thread.start()
         
-        # Give server time to start
         time.sleep(2)
         print("✅ A2A Server started in background!")
         print("💡 Server is running... Press Ctrl+C to stop")

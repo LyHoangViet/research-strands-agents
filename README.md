@@ -56,11 +56,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Cài đặt đầy đủ** (bao gồm API server và dev tools):
-```bash
-pip install -r requirements-dev.txt
-```
-
 ### 4. Cấu hình AWS credentials
 Sao chép file `.env.example` thành `.env` và điền thông tin AWS:
 
