@@ -23,7 +23,7 @@ from botocore.config import Config
 
 # Cấu hình timeout ngắn hơn
 boto_config = Config(
-    read_timeout=60,  # 60 giây thay vì default
+    read_timeout=60,  
     connect_timeout=10,
     retries={'max_attempts': 2}
 )
@@ -38,9 +38,8 @@ boto_session = boto3.Session(
 bedrock_model = BedrockModel(
     boto_session=boto_session,
     model_id=config.CHATBOT_AGENT_MODEL,
-    temperature=0.1,  # Giảm temperature để response ổn định hơn
-    max_tokens=5000,   # Giảm xuống để tránh timeout
-    # boto_config=boto_config  # Thêm timeout config
+    temperature=0.1,  
+    max_tokens=5000,
 )
 
 # Create tools for graph agents
@@ -120,10 +119,10 @@ builder.add_node(fact_checker, "fact_check")
 builder.add_node(report_writer, "report")
 
 # Add edges (dependencies)
-builder.add_edge("research", "analysis", condition=only_if_research_successful)  # conditional edge
-builder.add_edge("research", "fact_check")   # research → fact_check (always)
-builder.add_edge("analysis", "report")       # analysis → report
-builder.add_edge("fact_check", "report")     # fact_check → report
+builder.add_edge("research", "analysis", condition=only_if_research_successful)  
+builder.add_edge("research", "fact_check")   
+builder.add_edge("analysis", "report")   
+builder.add_edge("fact_check", "report")   
 
 builder.set_entry_point("research")
 
