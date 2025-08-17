@@ -1,205 +1,306 @@
-"""Streamlit UI for Amazon Textract Agent"""
+"""Streamlit UI for Textract Document Processing"""
 
 import streamlit as st
 import os
-import sys
-from PIL import Image
+import json
 import tempfile
+from PIL import Image
+import sys
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from tools.textact_tool import textract_tool
 from textract_agent import process_document
-from tools.classify_tool import classify_document_type, extract_key_fields
-from tools.format_tool import create_final_json_output
-import re
 
 def main():
     st.set_page_config(
-        page_title="Amazon Textract Agent",
+        page_title="📄 Textract Document Processor",
         page_icon="📄",
         layout="wide"
     )
     
-    st.title("📄 Document Processing Pipeline")
-    st.markdown("Xử lý tài liệu hoàn chỉnh: Textract → Classify → Format JSON")
+    st.title("📄 Textract Document Processing System")
+    st.markdown("---")
     
-    st.sidebar.header("🔧 Cấu hình")
-    st.sidebar.info("""
-    **Supported formats:**
-    - PNG, JPEG, JPG
-    - PDF (single page)
+    with st.sidebar:
+        st.header("🔧 Thông tin hệ thống")
+        st.info("""
+        **Quy trình xử lý:**
+        1. 📸 Textract - Trích xuất văn bản
+        2. 🏷️ Classify - Phân loại tài liệu  
+        3. 📋 Format - Định dạng kết quả
+        """)
+        
+        st.header("📁 Định dạng hỗ trợ")
+        st.write("• JPG, JPEG")
+        st.write("• PNG")
+        st.write("• PDF")
     
-    **Max file size:** 10MB
-    """)
-    
-    # Upload Section
-    st.header("📤 Upload Document")
+    st.header("📤 Upload tài liệu")
     
     uploaded_file = st.file_uploader(
-        "Chọn file hình ảnh hoặc PDF",
-        type=['png', 'jpg', 'jpeg', 'pdf'],
-        help="Kéo thả file vào đây hoặc click để chọn"
+        "Chọn file tài liệu để xử lý",
+        type=['jpg', 'jpeg', 'png', 'pdf'],
+        help="Hỗ trợ các định dạng: JPG, PNG, PDF"
     )
     
     if uploaded_file is not None:
         col1, col2 = st.columns([2, 1])
         
         with col1:
-            st.success(f"✅ Đã upload: {uploaded_file.name}")
-            st.info(f"📏 Kích thước: {uploaded_file.size / 1024:.1f} KB")
+            st.success(f"✅ Đã tải file: {uploaded_file.name}")
+            st.write(f"📊 Kích thước: {uploaded_file.size:,} bytes")
         
         with col2:
-            if st.button("🔄 Process Document", type="primary", use_container_width=True):
-                st.session_state.process_clicked = True
+            process_button = st.button("🚀 Xử lý tài liệu", type="primary", use_container_width=True)
         
-        # Image preview
         if uploaded_file.type.startswith('image'):
             try:
                 image = Image.open(uploaded_file)
-                st.image(image, caption="Document Preview", width=400)
+                st.image(image, caption="Preview", use_container_width=True)
             except Exception as e:
-                st.error(f"Không thể hiển thị ảnh: {e}")
-    
-    else:
-        st.info("👆 Upload a document to start processing")
+                st.warning(f"Không thể hiển thị preview: {e}")
         
-        st.subheader("📋 How it works")
-        st.markdown("""
-        **3-Step Pipeline:**
-        1. 📄 **Extract** text from image/PDF
-        2. 🏷️ **Classify** document type & extract fields  
-        3. 📋 **Format** to structured JSON
-        
-        **Supported Documents:**
-        - Identity: ID Card, Passport, Driver's License
-        - Address: Utility Bill, Bank Statement
-        - Eligibility: Certificate, Diploma
-        """)
-    
-    # Processing Section
-    if uploaded_file is not None and st.session_state.get('process_clicked', False):
-        st.markdown("---")
-        st.header("🚀 Processing Results")
-        
-        with st.spinner("Đang xử lý tài liệu..."):
-            try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
-                    tmp_file.write(uploaded_file.getvalue())
-                    temp_path = tmp_file.name
-                
-                # Run pipeline step by step and show results
-                st.subheader("🔄 Processing Steps")
-                
-                # Step 1: Textract
-                with st.status("📄 Step 1: Extracting text...", expanded=True) as status:
-                    textract_result = textract_tool(temp_path)
-                    st.text_area("Textract Output:", textract_result, height=200, key="textract_output")
-                    status.update(label="✅ Step 1: Text extraction completed", state="complete")
-                
-                # Extract text for next steps
-                extracted_text = ""
-                if "NỘI DUNG:" in textract_result:
-                    content_start = textract_result.find("NỘI DUNG:") + len("NỘI DUNG:")
-                    content_end = textract_result.find("✅ Hoàn thành!")
-                    if content_end == -1:
-                        content_end = len(textract_result)
-                    extracted_text = textract_result[content_start:content_end].strip()
-                
-                if extracted_text:
-                    # Step 2: Classification
-                    with st.status("🏷️ Step 2: Classifying document...", expanded=True) as status:
-                        classification_result = classify_document_type(extracted_text)
-                        st.text_area("Classification Output:", classification_result, height=200, key="classify_output")
-                        status.update(label="✅ Step 2: Document classification completed", state="complete")
-                    
-                    # Extract category for field extraction
-                    category = "Identity"  # Default
-                    if "Category:" in classification_result:
-                        category_match = re.search(r'Category:\s*([^\n]+)', classification_result)
-                        if category_match:
-                            category = category_match.group(1).strip()
-                    
-                    # Step 3: Field Extraction
-                    with st.status("🔍 Step 3: Extracting fields...", expanded=True) as status:
-                        extraction_result = extract_key_fields(extracted_text, category)
-                        st.text_area("Field Extraction Output:", extraction_result, height=200, key="extract_output")
-                        status.update(label="✅ Step 3: Field extraction completed", state="complete")
-                    
-                    # Step 4: JSON Formatting
-                    with st.status("📋 Step 4: Formatting JSON...", expanded=True) as status:
-                        final_json = create_final_json_output(
-                            textract_result=textract_result,
-                            classification_result=classification_result,
-                            extraction_result=extraction_result
-                        )
-                        status.update(label="✅ Step 4: JSON formatting completed", state="complete")
-                    
-                    # Display Final JSON Result
-                    st.markdown("---")
-                    st.subheader("🎯 Final JSON Output")
-                    
-                    try:
-                        import json
-                        result_dict = json.loads(final_json)
-                        
-                        # Display formatted JSON
-                        st.code(final_json, language="json")
-                        
-                        # Display summary metrics
-                        st.subheader("📊 Summary")
-                        col_a, col_b, col_c, col_d = st.columns(4)
-                        
-                        with col_a:
-                            st.metric("🏷️ Loại giấy tờ", result_dict.get('loai_giay_to', 'Unknown'))
-                        
-                        with col_b:
-                            st.metric("📄 Tên giấy tờ", result_dict.get('ten_giay_to', 'Unknown'))
-                        
-                        with col_c:
-                            fields_count = len(result_dict.get("cac_truong_du_lieu", {}))
-                            st.metric("📝 Số trường", fields_count)
-                        
-                        with col_d:
-                            warnings = result_dict.get("canh_bao_chat_luong_anh")
-                            warning_count = len(warnings) if warnings else 0
-                            st.metric("⚠️ Cảnh báo", warning_count)
-                        
-                        # Show extracted fields
-                        if result_dict.get("cac_truong_du_lieu"):
-                            st.subheader("🔍 Extracted Data")
-                            for field, value in result_dict["cac_truong_du_lieu"].items():
-                                st.text(f"• {field.replace('_', ' ').title()}: {value}")
-                        
-                        # Show warnings
-                        if warnings:
-                            st.subheader("⚠️ Warnings")
-                            for warning in warnings:
-                                st.warning(warning)
-                    
-                    except json.JSONDecodeError:
-                        st.error("❌ Invalid JSON output")
-                        st.text_area("Raw Output:", final_json, height=200)
-                
-                else:
-                    st.error("❌ No text extracted from document")
-                
-                os.unlink(temp_path)
-                
-                # Reset the process button state
-                st.session_state.process_clicked = False
-                
-            except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
-                st.session_state.process_clicked = False
+        # Process file when button clicked
+        if process_button:
+            process_uploaded_file(uploaded_file)
     
     st.markdown("---")
+    
+    st.header("📋 Kết quả xử lý")
+    
+    if 'processing_result' in st.session_state:
+        display_results(st.session_state.processing_result)
+    else:
+        st.info("👆 Vui lòng upload và xử lý tài liệu để xem kết quả")
+
+def process_uploaded_file(uploaded_file):
+    """Process the uploaded file and display results"""
+    
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    try:
+        status_text.text("💾 Đang lưu file...")
+        progress_bar.progress(25)
+        
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as tmp_file:
+            tmp_file.write(uploaded_file.getvalue())
+            temp_file_path = tmp_file.name
+        
+        status_text.text("🔄 Đang xử lý tài liệu...")
+        progress_bar.progress(50)
+        
+        result = process_document_safe(temp_file_path)
+        
+        progress_bar.progress(100)
+        status_text.text("✅ Hoàn thành!")
+        
+        if isinstance(result, dict) and "error" in result:
+            st.error(f"❌ Lỗi: {result['error']}")
+        else:
+            st.success("🎉 Xử lý thành công!")
+            
+            st.session_state.processing_result = result
+            
+            st.rerun()
+        
+    except Exception as e:
+        st.error(f"❌ Lỗi không mong muốn: {str(e)}")
+        
+    finally:
+        try:
+            if 'temp_file_path' in locals():
+                os.unlink(temp_file_path)
+        except:
+            pass
+        
+        progress_bar.empty()
+        status_text.empty()
+
+def process_document_safe(file_path: str) -> dict:
+    """
+    Process document using graph - return error if graph fails
+    
+    Args:
+        file_path: Path to the file to process
+    
+    Returns:
+        dict: Processing results or error
+    """
+    try:
+        st.write("🔄 Đang xử lý qua graph...")
+        result = process_document(file_path)
+        
+        return result
+        
+    except Exception as e:
+        return {"error": f"❌ Lỗi graph: {str(e)}"}
+
+def display_results(result):
+    """Display processing results in a formatted way"""
+    
+    if hasattr(result, 'results') and hasattr(result, 'status'):
+        final_result = None
+        textract_content = ""
+        classify_content = ""
+        format_content = ""
+        
+        if 'textract' in result.results:
+            textract_node = result.results['textract']
+            if hasattr(textract_node, 'result') and hasattr(textract_node.result, 'message'):
+                textract_content = textract_node.result.message['content'][0]['text']
+        
+        if 'classify' in result.results:
+            classify_node = result.results['classify']
+            if hasattr(classify_node, 'result') and hasattr(classify_node.result, 'message'):
+                classify_content = classify_node.result.message['content'][0]['text']
+        
+        if 'format' in result.results:
+            format_node = result.results['format']
+            if hasattr(format_node, 'result') and hasattr(format_node.result, 'message'):
+                format_content = format_node.result.message['content'][0]['text']
+                
+                import re
+                
+                json_patterns = [
+                    r'```json\s*(\{[\s\S]*?\})\s*```',  
+                    r'json\s*(\{[\s\S]*?\})',          
+                    r'(\{[\s\S]*?"loai_giay_to"[\s\S]*?\})', 
+                    r'(\{[^{}]*"loai_giay_to"[^{}]*\})' 
+                ]
+                
+                for pattern in json_patterns:
+                    json_match = re.search(pattern, format_content, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(1)
+                        try:
+                            json_str = json_str.strip()
+                            brace_count = 0
+                            clean_json = ""
+                            for char in json_str:
+                                clean_json += char
+                                if char == '{':
+                                    brace_count += 1
+                                elif char == '}':
+                                    brace_count -= 1
+                                    if brace_count == 0:
+                                        break
+                            
+                            final_result = json.loads(clean_json)
+                            break
+                        except Exception as e:
+                            continue  
+                
+                if final_result is None:
+                    st.warning("⚠️ Không thể parse JSON từ format agent, hiển thị raw content")
+        
+        result_dict = {
+            "status": str(result.status),
+            "execution_time": f"{result.execution_time/1000:.2f}s",
+            "total_tokens": result.accumulated_usage.get('totalTokens', 0),
+            "textract_content": textract_content,
+            "classify_content": classify_content,
+            "format_content": format_content,
+            "final_result": final_result,
+            "raw_result": str(result)[:1000] + "..." if len(str(result)) > 1000 else str(result)
+        }
+        result = result_dict
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Tổng quan", "🔍 Chi tiết", "📊 JSON Raw"])
+    
+    with tab1:
+        st.subheader("📋 Thông tin tổng quan")
+        
+        if isinstance(result, dict) and 'status' in result:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("📊 Status", result.get('status', 'N/A'))
+            with col2:
+                st.metric("⏱️ Execution Time", result.get('execution_time', 'N/A'))
+            with col3:
+                st.metric("🔤 Total Tokens", result.get('total_tokens', 'N/A'))
+            
+            if result.get('textract_content'):
+                with st.expander("📸 Textract - Trích xuất văn bản"):
+                    st.write(result['textract_content'])
+            
+            if result.get('classify_content'):
+                with st.expander("🏷️ Classify - Phân loại tài liệu"):
+                    st.write(result['classify_content'])
+            
+            if result.get('format_content'):
+                with st.expander("📋 Format - Kết quả JSON"):
+                    st.code(result['format_content'], language='json')
+        else:
+            if isinstance(result, dict):
+                for key, value in result.items():
+                    if key not in ["raw_data", "raw_result"]:
+                        if isinstance(value, dict):
+                            st.write(f"**{key}:**")
+                            st.json(value)
+                        else:
+                            st.write(f"**{key}:** {str(value)[:500]}...")
+            else:
+                st.write(str(result))
+    
+    with tab2:
+        st.subheader("🔍 Kết quả chi tiết")
+        
+        if isinstance(result, dict):
+            for key, value in result.items():
+                with st.expander(f"📂 {key}"):
+                    if isinstance(value, (dict, list)):
+                        st.json(value)
+                    else:
+                        st.write(value)
+        else:
+            st.text_area("Chi tiết:", value=str(result), height=300)
+    
+    with tab3:
+        st.subheader("📊 Dữ liệu JSON Raw")
+        
+        try:
+            if isinstance(result, dict):
+                st.json(result)
+            else:
+                st.json({"result": str(result)})
+        except:
+            st.text_area("Raw data:", value=str(result), height=300)
+    
+    if isinstance(result, dict):
+        json_str = json.dumps(result, indent=2, ensure_ascii=False)
+        st.download_button(
+            label="💾 Tải xuống kết quả (JSON)",
+            data=json_str,
+            file_name="textract_result.json",
+            mime="application/json"
+        )
+
+def add_custom_css():
     st.markdown("""
-    <div style='text-align: center'>
-        <p>🔧 Powered by Amazon Textract & Strands Multi-Agent Framework</p>
-        <p>📝 Document Processing Pipeline: Textract → Classify → Format</p>
-    </div>
+    <style>
+    .stProgress > div > div > div > div {
+        background-color: #1f77b4;
+    }
+    
+    .success-box {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .error-box {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    </style>
     """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
+    add_custom_css()
     main()

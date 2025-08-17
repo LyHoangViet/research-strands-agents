@@ -30,7 +30,7 @@ bedrock_model = BedrockModel(
 @tool
 def classify_document_type(extracted_text: str) -> str:
     """
-    Phân loại loại giấy tờ dựa trên văn bản đã trích xuất
+    Sử dụng LLM để phân loại loại giấy tờ dựa trên văn bản đã trích xuất
     
     Args:
         extracted_text: Văn bản đã được trích xuất từ Textract
@@ -39,77 +39,44 @@ def classify_document_type(extracted_text: str) -> str:
         Kết quả phân loại với category và document type
     """
     
-    identity_keywords = [
-        'driver', 'license', 'passport', 'id card', 'identity', 'citizen', 'national id',
-        'bằng lái xe', 'hộ chiếu', 'chứng minh', 'căn cước', 'giấy tờ tùy thân'
-    ]
-    
-    address_keywords = [
-        'utility bill', 'bank statement', 'lease', 'rental', 'address', 'residence',
-        'hóa đơn điện', 'hóa đơn nước', 'sao kê ngân hàng', 'hợp đồng thuê', 'địa chỉ'
-    ]
-    
-    eligibility_keywords = [
-        'certificate', 'diploma', 'degree', 'qualification', 'employment', 'income',
-        'bằng cấp', 'chứng chỉ', 'văn bằng', 'giấy chứng nhận', 'thu nhập'
-    ]
-    
-    text_lower = extracted_text.lower()
-    
-    identity_score = sum(1 for keyword in identity_keywords if keyword in text_lower)
-    address_score = sum(1 for keyword in address_keywords if keyword in text_lower)
-    eligibility_score = sum(1 for keyword in eligibility_keywords if keyword in text_lower)
-    
-    scores = {
-        'Identity': identity_score,
-        'Address': address_score, 
-        'Eligibility': eligibility_score
-    }
-    
-    category = max(scores, key=scores.get)
-    confidence = max(scores.values())
-    
-    document_type = "Unknown"
-    
-    if category == "Identity":
-        if any(word in text_lower for word in ['driver', 'license', 'bằng lái']):
-            document_type = "Driver's License"
-        elif any(word in text_lower for word in ['passport', 'hộ chiếu']):
-            document_type = "Passport"
-        elif any(word in text_lower for word in ['id card', 'identity', 'căn cước', 'chứng minh']):
-            document_type = "ID Card"
-    
-    elif category == "Address":
-        if any(word in text_lower for word in ['utility', 'electric', 'water', 'điện', 'nước']):
-            document_type = "Utility Bill"
-        elif any(word in text_lower for word in ['bank', 'statement', 'ngân hàng', 'sao kê']):
-            document_type = "Bank Statement"
-        elif any(word in text_lower for word in ['lease', 'rental', 'thuê']):
-            document_type = "Lease Agreement"
-    
-    elif category == "Eligibility":
-        if any(word in text_lower for word in ['certificate', 'chứng chỉ']):
-            document_type = "Certificate"
-        elif any(word in text_lower for word in ['diploma', 'degree', 'bằng']):
-            document_type = "Diploma/Degree"
-        elif any(word in text_lower for word in ['employment', 'income', 'thu nhập']):
-            document_type = "Employment Document"
-    
-    result = f"""📋 DOCUMENT CLASSIFICATION
-    
-🏷️ Category: {category}
-📄 Document Type: {document_type}
-🎯 Confidence Score: {confidence}/10
-📊 Scores: Identity({identity_score}) | Address({address_score}) | Eligibility({eligibility_score})
+    classification_prompt = f"""
+Bạn là chuyên gia phân loại tài liệu. Hãy phân loại tài liệu sau đây dựa trên nội dung văn bản:
 
-✅ Classification completed!"""
+VĂN BẢN TRÍCH XUẤT:
+{extracted_text}
+
+YÊU CẦU PHÂN LOẠI:
+1. Category (chọn 1 trong 3):
+   - Identity: Giấy tờ tùy thân (CCCD, CMND, Hộ chiếu, Bằng lái xe)
+   - Address: Giấy tờ chứng minh địa chỉ (Hóa đơn điện nước, Sao kê ngân hàng, Hợp đồng thuê)
+   - Eligibility: Giấy tờ chứng minh năng lực (Bằng cấp, Chứng chỉ, Giấy xác nhận thu nhập)
+
+2. Document Type: Tên cụ thể của giấy tờ (VD: "Căn Cước Công Dân", "Hộ Chiếu", "Bằng Lái Xe")
+
+3. Confidence Score: Mức độ tin cậy từ 1-10
+
+ĐỊNH DẠNG TRẢ LỜI:
+📋 DOCUMENT CLASSIFICATION
+
+🏷️ Category: [Category]
+📄 Document Type: [Document Type]
+🎯 Confidence Score: [Score]/10
+📝 Reasoning: [Lý do phân loại ngắn gọn]
+
+✅ Classification completed!
+
+LƯU Ý:
+- Phân tích kỹ nội dung, không chỉ dựa vào từ khóa
+- Xử lý được text có lỗi OCR hoặc không dấu
+- Ưu tiên độ chính xác cao
+"""
     
-    return result
+    return classification_prompt
 
 @tool
 def extract_key_fields(extracted_text: str, document_category: str) -> str:
     """
-    Trích xuất các trường dữ liệu quan trọng dựa trên loại tài liệu
+    Sử dụng LLM để trích xuất các trường dữ liệu quan trọng dựa trên loại tài liệu
     
     Args:
         extracted_text: Văn bản đã được trích xuất
@@ -119,57 +86,62 @@ def extract_key_fields(extracted_text: str, document_category: str) -> str:
         Các trường dữ liệu đã được trích xuất
     """
     
-    extracted_fields = {}
-    text_lines = extracted_text.split('\n')
-    
-    patterns = {
-        'name': r'(?:name|tên|họ tên)[:\s]*([A-Za-z\s]+)',
-        'date_of_birth': r'(?:dob|date of birth|ngày sinh|sinh)[:\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
-        'id_number': r'(?:id|number|số)[:\s]*([A-Z0-9]+)',
-        'address': r'(?:address|địa chỉ)[:\s]*([^,\n]+)',
-        'phone': r'(?:phone|tel|điện thoại)[:\s]*(\d{10,11})',
-        'email': r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
-    }
-    
-    if document_category.lower() == "identity":
-        for field, pattern in patterns.items():
-            if field in ['name', 'date_of_birth', 'id_number', 'address']:
-                matches = re.findall(pattern, extracted_text, re.IGNORECASE)
-                if matches:
-                    extracted_fields[field] = matches[0].strip()
-    
-    elif document_category.lower() == "address":
-        for field, pattern in patterns.items():
-            if field in ['name', 'address', 'phone']:
-                matches = re.findall(pattern, extracted_text, re.IGNORECASE)
-                if matches:
-                    extracted_fields[field] = matches[0].strip()
-    
-    elif document_category.lower() == "eligibility":
-        for field, pattern in patterns.items():
-            if field in ['name', 'date_of_birth', 'id_number']:
-                matches = re.findall(pattern, extracted_text, re.IGNORECASE)
-                if matches:
-                    extracted_fields[field] = matches[0].strip()
-    
-    # Format kết quả
-    if extracted_fields:
-        result = f"""🔍 EXTRACTED KEY FIELDS ({document_category.upper()})
-        
+    extraction_prompt = f"""
+Bạn là chuyên gia trích xuất dữ liệu từ tài liệu. Hãy trích xuất các trường dữ liệu quan trọng từ văn bản sau:
+
+LOẠI TÀI LIỆU: {document_category}
+
+VĂN BẢN TRÍCH XUẤT:
+{extracted_text}
+
+CÁC TRƯỜNG CẦN TRÍCH XUẤT:
+
+Nếu là Identity (Giấy tờ tùy thân):
+- Họ và tên (Full Name)
+- Ngày sinh (Date of Birth) 
+- Số CCCD/CMND/Hộ chiếu (ID Number)
+- Địa chỉ thường trú (Address)
+- Giới tính (Gender)
+- Quê quán (Place of Origin)
+- Ngày cấp (Issue Date)
+- Nơi cấp (Issued By)
+
+Nếu là Address (Chứng minh địa chỉ):
+- Tên chủ hộ (Name)
+- Địa chỉ (Address)
+- Số điện thoại (Phone)
+- Ngày hóa đơn (Bill Date)
+- Số tiền (Amount)
+
+Nếu là Eligibility (Chứng minh năng lực):
+- Họ và tên (Full Name)
+- Ngày sinh (Date of Birth)
+- Tên bằng cấp/chứng chỉ (Certificate Name)
+- Ngày cấp (Issue Date)
+- Nơi cấp (Issued By)
+
+ĐỊNH DẠNG TRẢ LỜI:
+🔍 EXTRACTED KEY FIELDS ({document_category.upper()})
+
+📝 [Tên trường]: [Giá trị]
+📝 [Tên trường]: [Giá trị]
+...
+
+✅ Field extraction completed!
+
+LƯU Ý:
+- Chỉ trích xuất các trường có thông tin rõ ràng
+- Xử lý được text có lỗi OCR hoặc không dấu
+- Nếu không tìm thấy thông tin, ghi "Không có thông tin"
+- Chuẩn hóa format ngày tháng về DD/MM/YYYY
 """
-        for field, value in extracted_fields.items():
-            result += f"📝 {field.replace('_', ' ').title()}: {value}\n"
-        
-        result += "\n✅ Field extraction completed!"
-    else:
-        result = f"⚠️ Không tìm thấy trường dữ liệu nào cho category: {document_category}"
     
-    return result
+    return extraction_prompt
 
 @tool
 def detect_multiple_documents(extracted_text: str) -> str:
     """
-    Phát hiện và xử lý trường hợp một ảnh có nhiều loại giấy tờ
+    Sử dụng LLM để phát hiện và xử lý trường hợp một ảnh có nhiều loại giấy tờ
     
     Args:
         extracted_text: Văn bản đã được trích xuất
@@ -178,62 +150,64 @@ def detect_multiple_documents(extracted_text: str) -> str:
         Thông tin về các tài liệu được phát hiện
     """
     
-    document_indicators = {
-        "Driver's License": ['driver', 'license', 'class', 'endorsements', 'bằng lái'],
-        "Passport": ['passport', 'nationality', 'place of birth', 'hộ chiếu'],
-        "ID Card": ['identity card', 'citizen', 'id number', 'căn cước', 'chứng minh'],
-        "Utility Bill": ['utility', 'electric', 'water', 'gas', 'hóa đơn'],
-        "Bank Statement": ['bank', 'statement', 'balance', 'account', 'ngân hàng'],
-        "Certificate": ['certificate', 'certify', 'awarded', 'chứng chỉ', 'chứng nhận']
-    }
-    
-    detected_documents = []
-    text_lower = extracted_text.lower()
-    
-    for doc_type, keywords in document_indicators.items():
-        score = sum(1 for keyword in keywords if keyword in text_lower)
-        if score >= 2:  # Threshold để xác định có tài liệu
-            detected_documents.append({
-                'type': doc_type,
-                'confidence': score
-            })
-    
-    detected_documents.sort(key=lambda x: x['confidence'], reverse=True)
-    
-    if len(detected_documents) > 1:
-        result = f"""🔍 MULTIPLE DOCUMENTS DETECTED
-        
-📊 Found {len(detected_documents)} document types:
+    detection_prompt = f"""
+Bạn là chuyên gia phân tích tài liệu. Hãy phân tích văn bản sau để phát hiện có bao nhiêu loại giấy tờ khác nhau:
 
-"""
-        for i, doc in enumerate(detected_documents, 1):
-            result += f"{i}. {doc['type']} (confidence: {doc['confidence']})\n"
-        
-        result += f"""
+VĂN BẢN TRÍCH XUẤT:
+{extracted_text}
+
+CÁC LOẠI TÀI LIỆU CÓ THỂ CÓ:
+- Căn Cước Công Dân (CCCD)
+- Chứng Minh Nhân Dân (CMND)  
+- Hộ Chiếu (Passport)
+- Bằng Lái Xe (Driver's License)
+- Hóa Đơn Điện/Nước (Utility Bill)
+- Sao Kê Ngân Hàng (Bank Statement)
+- Hợp Đồng Thuê Nhà (Lease Agreement)
+- Bằng Cấp/Chứng Chỉ (Certificate/Diploma)
+- Giấy Xác Nhận Thu Nhập (Income Certificate)
+
+NHIỆM VỤ:
+1. Phân tích xem có bao nhiêu loại tài liệu khác nhau
+2. Xác định tên cụ thể của từng loại
+3. Đánh giá độ tin cậy cho mỗi loại (1-10)
+
+ĐỊNH DẠNG TRẢ LỜI:
+
+Nếu phát hiện NHIỀU tài liệu:
+🔍 MULTIPLE DOCUMENTS DETECTED
+
+📊 Found [số lượng] document types:
+1. [Tên tài liệu 1] (confidence: [điểm]/10)
+2. [Tên tài liệu 2] (confidence: [điểm]/10)
+
 ⚠️ RECOMMENDATION:
 - Xử lý từng tài liệu riêng biệt
 - Ưu tiên tài liệu có confidence cao nhất
 - Kiểm tra lại kết quả trích xuất
 
-✅ Multi-document detection completed!"""
-    
-    elif len(detected_documents) == 1:
-        result = f"""📄 SINGLE DOCUMENT DETECTED
-        
-🏷️ Document Type: {detected_documents[0]['type']}
-🎯 Confidence: {detected_documents[0]['confidence']}
+✅ Multi-document detection completed!
 
-✅ Single document confirmed!"""
+Nếu chỉ có MỘT tài liệu:
+📄 SINGLE DOCUMENT DETECTED
+
+🏷️ Document Type: [Tên tài liệu]
+🎯 Confidence: [điểm]/10
+
+✅ Single document confirmed!
+
+LƯU Ý:
+- Chỉ coi là "multiple documents" khi thực sự có 2+ loại tài liệu khác nhau
+- Không nhầm lẫn giữa thông tin trên cùng 1 tài liệu
+- Xử lý được text có lỗi OCR
+"""
     
-    else:
-        result = "⚠️ Không thể xác định loại tài liệu rõ ràng. Cần kiểm tra lại."
-    
-    return result
+    return detection_prompt
 
 @tool
 def handle_multiple_entities(extracted_text: str) -> str:
     """
-    Xử lý trường hợp một tài liệu có nhiều thực thể (người, địa chỉ, v.v.)
+    Sử dụng LLM để xử lý trường hợp một tài liệu có nhiều thực thể (người, địa chỉ, v.v.)
     
     Args:
         extracted_text: Văn bản đã được trích xuất
@@ -242,42 +216,43 @@ def handle_multiple_entities(extracted_text: str) -> str:
         Thông tin về các thực thể được phát hiện
     """
     
-    name_pattern = r'(?:name|tên|họ tên)[:\s]*([A-Za-z\s]+)'
-    address_pattern = r'(?:address|địa chỉ)[:\s]*([^,\n]+)'
-    id_pattern = r'(?:id|number|số)[:\s]*([A-Z0-9]+)'
-    
-    names = re.findall(name_pattern, extracted_text, re.IGNORECASE)
-    addresses = re.findall(address_pattern, extracted_text, re.IGNORECASE)
-    ids = re.findall(id_pattern, extracted_text, re.IGNORECASE)
-    
-    names = list(set([name.strip() for name in names if len(name.strip()) > 2]))
-    addresses = list(set([addr.strip() for addr in addresses if len(addr.strip()) > 5]))
-    ids = list(set([id_num.strip() for id_num in ids if len(id_num.strip()) > 3]))
-    
-    result = f"""👥 MULTIPLE ENTITIES ANALYSIS
-    
+    entities_prompt = f"""
+Bạn là chuyên gia phân tích thực thể trong tài liệu. Hãy phân tích văn bản sau để phát hiện có bao nhiêu thực thể khác nhau:
+
+VĂN BẢN TRÍCH XUẤT:
+{extracted_text}
+
+CÁC LOẠI THỰC THỂ CẦN PHÂN TÍCH:
+- Tên người (Names): Họ tên đầy đủ của các cá nhân
+- Địa chỉ (Addresses): Các địa chỉ khác nhau (thường trú, tạm trú, nơi sinh)
+- Số định danh (ID Numbers): CCCD, CMND, Hộ chiếu, v.v.
+- Số điện thoại (Phone Numbers)
+- Email addresses
+- Ngày tháng (Dates): Ngày sinh, ngày cấp, v.v.
+
+NHIỆM VỤ:
+1. Xác định có bao nhiêu thực thể khác nhau cho mỗi loại
+2. Liệt kê cụ thể từng thực thể
+3. Phân tích xem có phải multiple entities hay không
+
+ĐỊNH DẠNG TRẢ LỜI:
+
+Nếu phát hiện NHIỀU thực thể:
+👥 MULTIPLE ENTITIES ANALYSIS
+
 📊 Detected entities:
-"""
-    
-    if len(names) > 1:
-        result += f"👤 Names ({len(names)}):\n"
-        for i, name in enumerate(names, 1):
-            result += f"   {i}. {name}\n"
-    
-    if len(addresses) > 1:
-        result += f"🏠 Addresses ({len(addresses)}):\n"
-        for i, addr in enumerate(addresses, 1):
-            result += f"   {i}. {addr}\n"
-    
-    if len(ids) > 1:
-        result += f"🆔 ID Numbers ({len(ids)}):\n"
-        for i, id_num in enumerate(ids, 1):
-            result += f"   {i}. {id_num}\n"
-    
-    total_entities = len(names) + len(addresses) + len(ids)
-    
-    if total_entities > 3:
-        result += f"""
+👤 Names ([số lượng]):
+   1. [Tên 1]
+   2. [Tên 2]
+
+🏠 Addresses ([số lượng]):
+   1. [Địa chỉ 1]
+   2. [Địa chỉ 2]
+
+🆔 ID Numbers ([số lượng]):
+   1. [ID 1]
+   2. [ID 2]
+
 ⚠️ MULTIPLE ENTITIES DETECTED:
 - Có thể là tài liệu gia đình hoặc nhóm
 - Cần xác định thực thể chính
@@ -286,13 +261,28 @@ def handle_multiple_entities(extracted_text: str) -> str:
 💡 RECOMMENDATION:
 - Sử dụng thực thể đầu tiên làm chính
 - Lưu trữ các thực thể khác như thông tin phụ
+
+✅ Entity analysis completed!
+
+Nếu chỉ có thực thể BÌNH THƯỜNG:
+👥 SINGLE ENTITY ANALYSIS
+
+📊 Detected entities:
+👤 Names: [số lượng]
+🏠 Addresses: [số lượng]  
+🆔 ID Numbers: [số lượng]
+
+✅ Số lượng thực thể trong mức bình thường
+
+✅ Entity analysis completed!
+
+LƯU Ý:
+- Chỉ coi là "multiple entities" khi có 2+ thực thể cùng loại
+- Phân biệt giữa thông tin chính và thông tin phụ
+- Xử lý được text có lỗi OCR
 """
-    else:
-        result += "\n✅ Số lượng thực thể trong mức bình thường"
     
-    result += "\n✅ Entity analysis completed!"
-    
-    return result
+    return entities_prompt
 
 def create_classify_agent():
     """
@@ -321,5 +311,6 @@ Quy trình làm việc:
 
 Luôn trả lời bằng tiếng Việt, chi tiết và chính xác."""
     )
-    return classify_agent
 
+    return classify_agent
+    
