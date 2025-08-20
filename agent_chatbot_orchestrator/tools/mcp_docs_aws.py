@@ -27,7 +27,13 @@ def get_aws_docs_tools():
     try:
         with stdio_mcp_client:
             tools = stdio_mcp_client.list_tools_sync()
+            print(f"🔍 MCP Tools found: {len(tools) if tools else 0}")
+            
+            if tools:
+                for i, tool in enumerate(tools):
+                    print(f"  {i+1}. {tool.tool_name}")
+            
             return tools
     except Exception as e:
-        print(f"Error getting AWS docs tools: {e}")
+        print(f"❌ Error getting AWS docs tools: {e}")
         return []
