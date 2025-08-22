@@ -74,10 +74,10 @@ aws_architect_agent = Agent(
     callback_handler=None
 )
 
-def get_architect_agent(user_input: str) -> str:
-    """Invoke AWS Architect Agent"""
-    response = aws_architect_agent(user_input)
-    return response
+# def get_architect_agent(user_input: str) -> str:
+#     """Invoke AWS Architect Agent"""
+#     response = aws_architect_agent(user_input)
+#     return response
 
 # def main():
 #     """Test function for AWS architect agent"""

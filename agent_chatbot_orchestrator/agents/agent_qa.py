@@ -51,10 +51,10 @@ aws_docs_agent = Agent(
     callback_handler=None
 )
 
-def get_docs_agent(user_input: str) -> str:
-    """Get agent"""
-    response = aws_docs_agent(user_input)
-    return response
+# def get_docs_agent(user_input: str) -> str:
+#     """Get agent"""
+#     response = aws_docs_agent(user_input)
+#     return response
 
 # def main():
 #     """Test function for AWS documentation agent"""

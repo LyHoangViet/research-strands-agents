@@ -57,34 +57,34 @@ account_agent = Agent(
     callback_handler=None
 )
 
-def get_account_agent(user_input: str) -> str:
-    """Get agent"""
-    response = account_agent(user_input)
-    return response
+# def get_account_agent(user_input: str) -> str:
+#     """Get agent"""
+#     response = account_agent(user_input)
+#     return response
 
-def main():
-    """Test Agent Account get resource on Cloud AWS"""
-    print("Nhập câu hỏi về AWS (hoặc 'quit' để thoát):")
+# def main():
+#     """Test Agent Account get resource on Cloud AWS"""
+#     print("Nhập câu hỏi về AWS (hoặc 'quit' để thoát):")
     
-    while True:
-        try:
-            user_input = input("\n❓ Câu hỏi: ").strip()
+#     while True:
+#         try:
+#             user_input = input("\n❓ Câu hỏi: ").strip()
             
-            if user_input.lower() in ['quit', 'exit', 'q', 'thoát']:
-                print("👋 Tạm biệt!")
-                break
+#             if user_input.lower() in ['quit', 'exit', 'q', 'thoát']:
+#                 print("👋 Tạm biệt!")
+#                 break
                 
-            if not user_input:
-                continue
+#             if not user_input:
+#                 continue
             
-            response = get_account_agent(user_input)
-            print(f"\n💡 Trả lời:\n{response}")
+#             response = get_account_agent(user_input)
+#             print(f"\n💡 Trả lời:\n{response}")
             
-        except KeyboardInterrupt:
-            print("\n\n👋 Tạm biệt!")
-            break
-        except Exception as e:
-            print(f"\n❌ Lỗi: {str(e)}")
+#         except KeyboardInterrupt:
+#             print("\n\n👋 Tạm biệt!")
+#             break
+#         except Exception as e:
+#             print(f"\n❌ Lỗi: {str(e)}")
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
