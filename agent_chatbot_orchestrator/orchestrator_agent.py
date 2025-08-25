@@ -37,25 +37,30 @@ def get_account_agent(user_input: str) -> str:
 @tool
 def get_architect_agent(user_input: str) -> str:
     """Get AWS architecture design and recommendations"""  
-    response = architect_agent(user_input)
+    response = aws_architect_agent(user_input)
     return response
 
 @tool
 def get_docs_agent(user_input: str) -> str:
     """Search AWS documentation and guides"""
-    response = docs_agent(user_input) 
+    response = aws_docs_agent(user_input) 
     return response
 
 MAIN_SYSTEM_PROMPT = """
-Bạn là trợ lý thông minh điều phối các agent chuyên biệt cho AWS.
+You are an AWS agent orchestrator. Your ONLY job is to route user questions to the appropriate specialist agent and return their exact response.
 
-Khi người dùng hỏi:
-- Về resources/account AWS → Sử dụng get_account_agent(user_input)
-- Về thiết kế/kiến trúc → Sử dụng get_architect_agent(user_input)  
-- Về tài liệu AWS → Sử dụng get_docs_agent(user_input)
+Route questions as follows:
+- AWS account/resources questions → use get_account_agent(user_input)
+- AWS architecture/design questions → use get_architect_agent(user_input)  
+- AWS documentation questions → use get_docs_agent(user_input)
 
-QUAN TRỌNG: Luôn gọi tool phù hợp thay vì tự trả lời.
-Trả lời bằng ngôn ngữ câu hỏi.
+CRITICAL RULES:
+1. ALWAYS call the appropriate tool - never answer directly
+2. Return ONLY the tool's response - do not add commentary, explanations, or modifications
+3. Do not translate, summarize, or interpret the tool's output
+4. If unsure which tool to use, default to get_account_agent for general AWS questions
+
+Respond in the same language as the user's question.
 """
 
 orchestrator = Agent(
@@ -83,12 +88,10 @@ async def process_streaming_response(user_input: str):
     print("-" * 50)
     print(f"✅ Hoàn thành! Tổng độ dài response: {len(full_response)} ký tự")
 
-# Sync wrapper for compatibility
 def run_streaming_response(user_input: str):
     """Synchronous wrapper for streaming response"""
     return asyncio.run(process_streaming_response(user_input))
 
-# Alternative: Collect all chunks and return
 async def get_streaming_response_as_list(user_input: str):
     """Get streaming response as a list of chunks"""
     chunks = []
@@ -106,53 +109,52 @@ async def test_streaming():
     
     print("=== Testing Streaming Response ===")
     async for chunk in process_streaming_response(test_question):
-        # Simulate UI processing each chunk
-        await asyncio.sleep(0.1)  # Small delay to simulate UI rendering
+        await asyncio.sleep(0.1) 
         print(f"UI received: {chunk}")
 
-if __name__ == "__main__":
-    # Test streaming
-    print("🧪 Testing streaming functionality...")
-    asyncio.run(test_streaming())
+# if __name__ == "__main__":
+#     # Test streaming
+#     print("🧪 Testing streaming functionality...")
+#     asyncio.run(test_streaming())
     
-    # Interactive mode with streaming
-    print("\n" + "="*60)
-    print("🎯 Interactive mode với streaming")
-    print("="*60)
-    
-    while True:
-        user_question = input("\n❓ Câu hỏi: ").strip()
-        if user_question.lower() in ['quit', 'exit', 'q']:
-            print("👋 Tạm biệt!")
-            break
-        
-        if user_question:
-            # Run streaming response
-            asyncio.run(process_streaming_response(user_question))
-
-# def main():
-#     """Test Agent Account get resource on Cloud AWS"""
-#     print("Nhập câu hỏi về AWS (hoặc 'quit' để thoát):")
+#     # Interactive mode with streaming
+#     print("\n" + "="*60)
+#     print("🎯 Interactive mode với streaming")
+#     print("="*60)
     
 #     while True:
-#         try:
-#             user_input = input("\n❓ Câu hỏi: ").strip()
-            
-#             if user_input.lower() in ['quit', 'exit', 'q', 'thoát']:
-#                 print("👋 Tạm biệt!")
-#                 break
-                
-#             if not user_input:
-#                 continue
-            
-#             response = orchestrator(user_input)
-#             print(f"\n💡 Trả lời:\n{response}")
-            
-#         except KeyboardInterrupt:
-#             print("\n\n👋 Tạm biệt!")
+#         user_question = input("\n❓ Câu hỏi: ").strip()
+#         if user_question.lower() in ['quit', 'exit', 'q']:
+#             print("👋 Tạm biệt!")
 #             break
-#         except Exception as e:
-#             print(f"\n❌ Lỗi: {str(e)}")
+        
+#         if user_question:
+#             # Run streaming response
+#             asyncio.run(process_streaming_response(user_question))
 
-# if __name__ == "__main__":
-#     main()
+def main():
+    """Test Agent Account get resource on Cloud AWS"""
+    print("Nhập câu hỏi về AWS (hoặc 'quit' để thoát):")
+    
+    while True:
+        try:
+            user_input = input("\n❓ Câu hỏi: ").strip()
+            
+            if user_input.lower() in ['quit', 'exit', 'q', 'thoát']:
+                print("👋 Tạm biệt!")
+                break
+                
+            if not user_input:
+                continue
+            
+            response = orchestrator(user_input)
+            print(f"\n💡 Trả lời:\n{response}")
+            
+        except KeyboardInterrupt:
+            print("\n\n👋 Tạm biệt!")
+            break
+        except Exception as e:
+            print(f"\n❌ Lỗi: {str(e)}")
+
+if __name__ == "__main__":
+    main()

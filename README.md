@@ -1,33 +1,45 @@
 # Research Strands Agents
 
-Dự án nghiên cứu và triển khai chatbot sử dụng **Strands Agent framework** với **AWS Bedrock** và **Claude AI**.
+Dự án nghiên cứu và triển khai hệ thống multi-agent sử dụng **Strands Agent framework** với **AWS Bedrock** và **Claude AI**. Hỗ trợ nhiều kiểu agent pattern: Orchestrator, Graph, Swarm, và Workflow.
 
 ## 🚀 Tính năng chính
 
-- ✅ **AWS Bedrock Integration**: Kết nối với Claude AI models
-- ✅ **Strands-compatible**: Tương thích với Strands Agent framework
-- ✅ **Multi-agent Support**: Hỗ trợ nhiều agent với personality khác nhau
-- ✅ **Conversation Memory**: Ghi nhớ lịch sử cuộc trò chuyện
-- ✅ **Flexible Configuration**: Cấu hình linh hoạt qua file .env
-- ✅ **Easy Integration**: API đơn giản, dễ tích hợp
+- ✅ **Multi-Agent Patterns**: Orchestrator, Graph, Swarm, Workflow
+- ✅ **AWS Bedrock Integration**: Kết nối với Claude AI và Nova models
+- ✅ **Document Processing**: Textract integration cho xử lý tài liệu
+- ✅ **Streaming Support**: Real-time response streaming
+- ✅ **FastAPI Backend**: RESTful API cho tích hợp
+- ✅ **Comprehensive Tools**: AWS resource management, pricing, documentation
+- ✅ **Docker Support**: Containerized deployment
+- ✅ **Flexible Configuration**: Environment-based configuration
 
 ## 📁 Cấu trúc dự án
 
 ```
-├── bedrock/                    # AWS Bedrock integration
-│   ├── session.py             # AWS session management
-│   ├── claude.py              # Claude AI client
-│   ├── strands_adapter.py     # Strands framework adapter
-│   └── __init__.py
-├── src/                       # Source code chính
-│   ├── agents/               # Agent implementations
-│   ├── core/                 # Core framework
-│   └── utils/                # Utilities
-├── tests/                    # Test cases
-├── config.py                 # Configuration management
-├── .env                      # Environment variables
-├── requirements.txt          # Dependencies
-└── README.md
+├── agent_chatbot_orchestrator/     # Agent orchestrator pattern
+│   ├── agents/                    # Specialized agents (account, architect, docs)
+│   ├── tools/                     # Agent tools
+│   └── orchestrator_agent.py      # Main orchestrator
+├── agent_textract_graph/          # Document processing graph
+│   ├── tools/                     # Textract, classify, format tools
+│   ├── textract_agent.py          # Graph-based document processing
+│   └── ui_textract.py             # Streamlit UI
+├── agent_plan_swarm/              # Swarm agent pattern
+│   └── swarm_agent.py             # Multi-agent collaboration
+├── agent_infra_workflow/          # Workflow management
+│   └── flow_agent.py              # Sequential workflow processing
+├── bedrock/                       # AWS Bedrock integration
+│   ├── session.py                 # AWS session management
+│   └── claude.py                  # Claude AI client
+├── src/                           # Core framework
+│   ├── agents/                    # Base agents (docs, pricing, resource)
+│   ├── tools/                     # AWS tools (cost, pricing, resources)
+│   └── utils/                     # Configuration and logging
+├── api/                           # FastAPI application
+├── tests/                         # Comprehensive test suite
+├── docker/                        # Docker configuration
+├── scripts/                       # Utility scripts
+└── config/                        # Configuration files
 ```
 
 ## 🛠️ Cài đặt
@@ -50,14 +62,12 @@ source .venv/bin/activate
 ```
 
 ### 3. Cài đặt dependencies
-
-**Cài đặt cơ bản** (chỉ cần thiết):
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Cấu hình AWS credentials
-Sao chép file `.env.example` thành `.env` và điền thông tin AWS:
+Sao chép file `.env.example` thành `.env`:
 
 ```bash
 cp .env.example .env
@@ -68,243 +78,222 @@ Chỉnh sửa file `.env`:
 # AWS Configuration
 AWS_ACCESS_KEY_ID=your_access_key_here
 AWS_SECRET_ACCESS_KEY=your_secret_key_here
+AWS_SESSION_TOKEN=your_session_token  # Optional for temporary credentials
 AWS_REGION=us-east-1
 
 # Agent Models
-CHATBOT_AGENT_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
+CHATBOT_AGENT_MODEL=us.anthropic.claude-3-7-sonnet-20250219-v1:0
+
+# Bedrock Configuration
+BEDROCK_MAX_TOKENS=10000
+BEDROCK_TEMPERATURE=0.1
+
+# OpenSearch (Optional)
+OPENSEARCH_HOST=
+OPENSEARCH_COLLECTION_ID=
+OPENSEARCH_INDEX_NAME=
 ```
 
 ## 🎯 Cách sử dụng
 
-### 1. Sử dụng cơ bản với Claude
-
-```python
-from bedrock.claude import ask_claude, chat_with_claude
-
-# Cách đơn giản nhất
-response = ask_claude("Xin chào! Bạn có khỏe không?")
-print(response)
-
-# Với system prompt
-response = chat_with_claude(
-    message="Giải thích về machine learning",
-    system_prompt="Bạn là chuyên gia AI, trả lời bằng tiếng Việt",
-    temperature=0.7
-)
-print(response)
+### 1. Agent Orchestrator Pattern
+```bash
+python agent_chatbot_orchestrator/orchestrator_agent.py
 ```
 
-### 2. Sử dụng với Strands-compatible API
+Orchestrator tự động định tuyến câu hỏi đến agent phù hợp:
+- **Account Agent**: Thông tin tài khoản AWS và resources
+- **Architect Agent**: Thiết kế kiến trúc AWS
+- **Docs Agent**: Tìm kiếm tài liệu AWS
 
-```python
-from bedrock.strands_adapter import create_agent, create_bedrock_model
-
-# Tạo model (giống Strands BedrockModel)
-bedrock_model = create_bedrock_model(
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
-    temperature=0.3,
-    max_tokens=2048
-)
-
-# Tạo agent (giống Strands Agent)
-agent = create_agent(
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
-    name="ChatBot",
-    system_prompt="Bạn là trợ lý AI thông minh",
-    temperature=0.7
-)
-
-# Sử dụng agent
-response = agent("Tell me about Amazon Bedrock.")
-print(response)
+### 2. Document Processing Graph
+```bash
+python agent_textract_graph/textract_agent.py
 ```
 
-### 3. Conversation với memory
+Xử lý tài liệu qua workflow:
+1. **Textract**: Trích xuất text từ document
+2. **Classify**: Phân loại nội dung
+3. **Format**: Định dạng kết quả
 
-```python
-from bedrock.strands_adapter import create_agent
-
-agent = create_agent(
-    name="Assistant",
-    system_prompt="Bạn là trợ lý thông minh, hãy nhớ những gì người dùng nói"
-)
-
-# Cuộc trò chuyện có ngữ cảnh
-response1 = agent("Tên tôi là John")
-print(f"Agent: {response1}")
-
-response2 = agent("Tên tôi là gì?")  # Agent sẽ nhớ tên
-print(f"Agent: {response2}")
+### 3. Swarm Agent Pattern
+```bash
+python agent_plan_swarm/swarm_agent.py
 ```
 
-### 4. Multiple agents với personality khác nhau
+Multi-agent collaboration với handoff mechanism.
 
-```python
-from bedrock.strands_adapter import create_agent
+### 4. Workflow Management
+```bash
+python agent_infra_workflow/flow_agent.py
+```
 
-# Agent thơ ca
-poet = create_agent(
-    name="Poet",
-    system_prompt="Bạn là nhà thơ, trả lời bằng ngôn ngữ thơ mộng",
-    temperature=0.9
-)
+Sequential workflow với dependencies:
+- Research → Analysis → Report
 
-# Agent khoa học
-scientist = create_agent(
-    name="Scientist", 
-    system_prompt="Bạn là nhà khoa học, trả lời chính xác và kỹ thuật",
-    temperature=0.3
-)
+### 5. FastAPI Server
+```bash
+python api/app.py
+# hoặc
+uvicorn api.app:app --reload
+```
 
-question = "Mô tả đại dương"
-poet_response = poet(question)
-scientist_response = scientist(question)
+### 6. Streamlit UI (Textract)
+```bash
+streamlit run agent_textract_graph/ui_textract.py
+```
 
-print(f"Poet: {poet_response}")
-print(f"Scientist: {scientist_response}")
+### 7. Console Mode
+```bash
+python main.py
 ```
 
 ## 🧪 Testing
 
-### Chạy test cơ bản
+### Chạy tất cả tests
 ```bash
-python tests/test_agents.py
+pytest tests/
 ```
 
-### Chạy test Strands integration
+### Test từng agent pattern
 ```bash
-python test_strands_integration.py
+python tests/test_agent_orchestrator.py
+python tests/test_agent_graph.py
+python tests/test_agent_swarm.py
+python tests/test_agent_workflow.py
 ```
 
-### Test cấu hình
+## 🐳 Docker Deployment
+
 ```bash
-python test_config.py
+cd docker
+docker-compose up --build
 ```
+
+Service sẽ chạy trên port 8000 với health check.
 
 ## ⚙️ Configuration
 
-### File `.env` - Các biến môi trường:
+### Supported Models
+- `us.anthropic.claude-3-7-sonnet-20250219-v1:0` (Default)
+- `anthropic.claude-3-sonnet-20240229-v1:0`
+- `anthropic.claude-3-haiku-20240307-v1:0`
+- `us.amazon.nova-micro-v1:0`
 
-```env
-# AWS Configuration
-AWS_ACCESS_KEY_ID=your_access_key
-AWS_SECRET_ACCESS_KEY=your_secret_key
-AWS_REGION=us-east-1
+### AWS Tools Available
+- **Resource Management**: List và detail AWS resources
+- **Cost Analysis**: Usage và pricing information
+- **Documentation**: AWS docs search
+- **Textract**: Document processing
 
-# Agent Models
-CHATBOT_AGENT_MODEL=anthropic.claude-3-sonnet-20240229-v1:0
-OTHER_AGENT_MODEL=us.amazon.nova-micro-v1:0
-POLICY_AGENT_MODEL=us.amazon.nova-micro-v1:0
+## 📚 API Examples
 
-# Bedrock Configuration  
-BEDROCK_MAX_TOKENS=4096
-BEDROCK_TEMPERATURE=0.7
+### Orchestrator với Streaming
+```python
+from agent_chatbot_orchestrator.orchestrator_agent import process_streaming_response
+
+async for chunk in process_streaming_response("Account của tôi có những resource nào?"):
+    print(chunk, end="")
 ```
 
-### Các model có sẵn:
-- `anthropic.claude-3-sonnet-20240229-v1:0` (Recommended)
-- `anthropic.claude-3-haiku-20240307-v1:0` (Fast)
-- `anthropic.claude-3-opus-20240229-v1:0` (Most capable)
-- `us.amazon.nova-micro-v1:0` (AWS Nova)
+### Document Processing
+```python
+from agent_textract_graph.textract_agent import process_document
 
-## 📚 API Reference
+result = process_document("/path/to/document.pdf")
+print(result)
+```
 
-### ClaudeClient
+### Claude Client
 ```python
 from bedrock.claude import ClaudeClient
 
 client = ClaudeClient()
-
-# Basic chat
-response = client.chat("Hello!")
-
-# With options
 response = client.chat(
-    message="Explain AI",
-    system_prompt="You are an expert",
-    temperature=0.7,
-    max_tokens=2048
-)
-
-# With conversation history
-response = client.chat(
-    message="Continue our discussion",
-    conversation_history=[
-        {"role": "user", "content": "Previous message"},
-        {"role": "assistant", "content": "Previous response"}
-    ]
-)
-```
-
-### StrandsAgent
-```python
-from bedrock.strands_adapter import StrandsAgent, StrandsBedrockModel
-
-# Create model
-model = StrandsBedrockModel(
-    model_id="anthropic.claude-3-sonnet-20240229-v1:0",
+    message="Explain AWS Lambda",
+    system_prompt="You are an AWS expert",
     temperature=0.7
 )
-
-# Create agent
-agent = StrandsAgent(
-    model=model,
-    name="MyAgent",
-    system_prompt="You are helpful"
-)
-
-# Use agent
-response = agent("Hello!")
-
-# Reset conversation
-agent.reset()
 ```
 
 ## 🔧 Troubleshooting
 
-### Lỗi AWS credentials
-```
-❌ Error: AWS credentials not found
-```
-**Giải pháp**: Kiểm tra file `.env` có đúng AWS_ACCESS_KEY_ID và AWS_SECRET_ACCESS_KEY
+### AWS Credentials
+```bash
+# Test AWS connection
+aws sts get-caller-identity
 
-### Lỗi model không tồn tại
+# Hoặc check trong Python
+python -c "import boto3; print(boto3.Session().get_credentials())"
 ```
-❌ Error: Model not found
-```
-**Giải pháp**: Kiểm tra model_id trong `.env` và đảm bảo model được enable trong AWS Bedrock
 
-### Lỗi region
-```
-❌ Error: Invalid region
-```
-**Giải pháp**: Kiểm tra AWS_REGION trong `.env`, sử dụng region hỗ trợ Bedrock như `us-east-1`
+### Model Access
+Đảm bảo model được enable trong AWS Bedrock console:
+1. Vào AWS Bedrock console
+2. Model access → Request model access
+3. Enable các model cần thiết
+
+### Region Support
+Sử dụng regions hỗ trợ Bedrock:
+- `us-east-1` (Virginia)
+- `us-west-2` (Oregon)
+- `eu-west-1` (Ireland)
+
+## 🎨 Agent Patterns
+
+### 1. Orchestrator Pattern
+- **Use case**: Routing queries to specialized agents
+- **Benefits**: Clear separation of concerns, scalable
+- **Example**: AWS support chatbot
+
+### 2. Graph Pattern  
+- **Use case**: Sequential processing with dependencies
+- **Benefits**: Structured workflow, parallel execution
+- **Example**: Document processing pipeline
+
+### 3. Swarm Pattern
+- **Use case**: Collaborative problem solving
+- **Benefits**: Dynamic handoffs, flexible collaboration
+- **Example**: Research and analysis tasks
+
+### 4. Workflow Pattern
+- **Use case**: Predefined business processes
+- **Benefits**: Repeatable, auditable workflows
+- **Example**: Infrastructure provisioning
 
 ## 🤝 Contributing
 
 1. Fork repository
-2. Tạo feature branch: `git checkout -b feature/amazing-feature`
-3. Commit changes: `git commit -m 'Add amazing feature'`
-4. Push to branch: `git push origin feature/amazing-feature`
-5. Tạo Pull Request
+2. Tạo feature branch: `git checkout -b feature/new-agent-pattern`
+3. Implement changes với tests
+4. Commit: `git commit -m 'Add new agent pattern'`
+5. Push: `git push origin feature/new-agent-pattern`
+6. Tạo Pull Request
 
 ## 📄 License
 
-Dự án này sử dụng MIT License. Xem file [LICENSE](LICENSE) để biết thêm chi tiết.
+MIT License - xem file [LICENSE](LICENSE) để biết chi tiết.
 
 ## 🆘 Support
 
-Nếu gặp vấn đề, hãy:
-1. Kiểm tra [Troubleshooting](#-troubleshooting)
-2. Chạy `python test_config.py` để kiểm tra cấu hình
-3. Tạo issue trên GitHub với thông tin chi tiết
+### Debug Steps
+1. Check AWS credentials: `aws configure list`
+2. Test Bedrock access: `python tests/test_agent_orchestrator.py`
+3. Verify model access trong AWS console
+4. Check logs trong `logs/` directory
 
-## 🔗 Links
+### Common Issues
+- **Timeout errors**: Giảm `BEDROCK_MAX_TOKENS` hoặc tăng timeout
+- **Model not found**: Enable model trong Bedrock console
+- **Permission denied**: Check IAM permissions cho Bedrock
+
+## 🔗 Resources
 
 - [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
-- [Anthropic Claude API](https://docs.anthropic.com/claude/reference/)
-- [Strands Agent Framework](https://strandsagents.com/)
+- [Strands Agent Framework](https://github.com/strands-ai/strands-agents)
+- [Claude API Reference](https://docs.anthropic.com/claude/reference/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
 
 ---
 
-**Happy coding! 🚀**
+**Multi-Agent AI với AWS Bedrock! 🚀**
